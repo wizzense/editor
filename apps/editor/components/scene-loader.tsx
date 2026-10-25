@@ -27,6 +27,7 @@ import { useThumbnailAutosave } from '@/lib/use-thumbnail-autosave'
 import { BuildTab } from './build-tab'
 import { EditorNavbar } from './editor-navbar'
 import { KitchenCommands } from './kitchen-browser'
+import { applyRemoteGraphAsAgent, LiveAgentReveal, liveRevealEnabled } from './live-agent-reveal'
 import { PaintPanel } from './paint-panel'
 import { EditorViewerToolbarLeft, EditorViewerToolbarRight } from './viewer-toolbar'
 import { useWebXRFeature, useWebXRInstalled, WebXRFeatureRuntime } from './webxr-feature-gate'
@@ -195,6 +196,8 @@ function SceneEditor({ initialScene, meta: initialMeta }: SceneLoaderProps) {
   const pendingGraphSignaturesRef = useRef(new Set<string>())
   const suppressRemoteSaveUntilRef = useRef(0)
   const [conflict, setConflict] = useState(false)
+  const [liveReveal, setLiveReveal] = useState(false)
+  useEffect(() => setLiveReveal(liveRevealEnabled()), [])
   const [saveError, setSaveError] = useState<string | null>(null)
 
   const lightPreview = isLightPreviewQuery(searchParams)
@@ -233,6 +236,8 @@ function SceneEditor({ initialScene, meta: initialMeta }: SceneLoaderProps) {
 
   const handleSave = useCallback(
     async (graph: SceneGraph, options?: { keepalive?: boolean }) => {
+      // Watching an agent build live: its writes are the scene; the editor does not save over them.
+      if (liveRevealEnabled()) return
       const graphJson = sceneGraphSignature(graph)
       const isRecentRemoteApply = Date.now() < suppressRemoteSaveUntilRef.current
       if (lastRemoteGraphJsonRef.current === graphJson) {
@@ -327,7 +332,10 @@ function SceneEditor({ initialScene, meta: initialMeta }: SceneLoaderProps) {
       if (isPendingSceneGraphEcho(payload.graph, pendingGraphSignaturesRef.current)) return
       lastRemoteGraphJsonRef.current = signature
       suppressRemoteSaveUntilRef.current = Date.now() + 2500
-      applySceneGraphToEditor(payload.graph)
+      // Live reveal: the agent's write plays as a build (a diff applied as an agent commit), not a reload.
+      if (!(liveRevealEnabled() && applyRemoteGraphAsAgent(payload.graph))) {
+        applySceneGraphToEditor(payload.graph)
+      }
       setConflict(false)
       setSaveError(null)
     })
@@ -397,6 +405,7 @@ function SceneEditor({ initialScene, meta: initialMeta }: SceneLoaderProps) {
         projectName={meta.name}
         sidebarTabs={SIDEBAR_TABS}
         viewerBanner={<PoolSectionBanner />}
+        viewerSceneSlot={liveReveal ? <LiveAgentReveal /> : undefined}
         viewerToolbarLeft={<EditorViewerToolbarLeft />}
         viewerToolbarRight={
           <EditorViewerToolbarRight
