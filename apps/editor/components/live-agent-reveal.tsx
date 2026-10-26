@@ -68,6 +68,16 @@ export function applyRemoteGraphAsAgent(graph: SceneGraph | null | undefined): b
   const rootsShared = (graph?.rootNodeIds ?? []).some((id) => local[id as AnyNodeId])
   if (!rootsShared) return false
 
+  // Scene materials first: a node painted with a custom finish refers to one (scene:mat_…), and without it the
+  // editor (and the GLB it exports) falls back to the default finish.
+  const remoteMaterials = (graph?.materials ?? {}) as Record<string, unknown>
+  for (const [id, material] of Object.entries(remoteMaterials)) {
+    const mine = (state.materials as Record<string, unknown>)[id]
+    if (!mine) useScene.getState().addSceneMaterial(material as never)
+    else if (JSON.stringify(mine) !== JSON.stringify(material))
+      useScene.getState().updateSceneMaterial(id as never, material as never)
+  }
+
   const create: { node: AnyNode; parentId?: AnyNodeId }[] = []
   const update: { id: AnyNodeId; data: Partial<AnyNode> }[] = []
   const remove: AnyNodeId[] = []
