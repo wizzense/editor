@@ -7,6 +7,7 @@ import { registerEditorHostView } from '@pascal-app/editor'
 import { configureEngineView, engineHostView } from '@pascal-app/engine-bridge'
 import { REMOTE_SCENE_PLUGIN_ID, remoteScenePlugin } from '@pascal-app/remote-scene'
 import { SEQUENCE_PLUGIN_ID, sequencePlugin, timelineHostView } from '@pascal-app/sequence'
+import { useViewer } from '@pascal-app/viewer'
 
 /** Whether this build carries the fork extensions. */
 export const forkExtensionsEnabled = process.env.NEXT_PUBLIC_PASCAL_FORK_EXT === '1'
@@ -64,7 +65,7 @@ if (forkExtensionsEnabled) {
   void registerForkExtensions()
   // Dev inspection, like `__pascalNodeRegistry` in bootstrap: lets a browser check drive the store as a tool does.
   if (process.env.NODE_ENV !== 'production' && typeof globalThis !== 'undefined') {
-    ;(globalThis as { __pascalSceneStore?: typeof useScene }).__pascalSceneStore = useScene
+    Object.assign(globalThis, { __pascalSceneStore: useScene, __pascalViewerStore: useViewer })
   }
   // A scene host link may land on the project list: the studio page is where its scene opens.
   if (typeof window !== 'undefined' && window.location.pathname === '/' && sceneHostFromUrl()) {

@@ -46,15 +46,4 @@ export const remoteScenePlugin: Plugin = {
   id: REMOTE_SCENE_PLUGIN_ID,
   apiVersion: 1,
   nodes: [extElementNodeDefinition],
-  inspectorExtensions: [
-    {
-      id: 'pascal:remote-scene:element',
-      pluginId: REMOTE_SCENE_PLUGIN_ID,
-      kinds: ['ext:element'],
-      icon: { kind: 'iconify', name: 'lucide:link' },
-      title: 'Host element',
-      component: () => import('./kinds/element-inspector') as never,
-      primaryWhen: () => true,
-    },
-  ],
 }

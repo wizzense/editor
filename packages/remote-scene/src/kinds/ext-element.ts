@@ -69,6 +69,8 @@ export const extElementDefinition: NodeDefinition<typeof ExtElementNode> = {
   },
 
   handles: [moveHandle()],
+  // No editable fields of its own (they derive from the host row): the kind owns its inspector card.
+  parametrics: { groups: [], customPanel: () => import('./element-panel') },
 
   renderer: { kind: 'parametric', module: () => import('./ext-element-renderer') },
 
