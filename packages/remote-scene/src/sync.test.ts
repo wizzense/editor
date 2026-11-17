@@ -248,6 +248,49 @@ describe('RemoteSceneSync', () => {
     expect(notes).toEqual(['The host refused the edit: 0: no'])
     sync.stop()
   })
+  test('an edit seen twice (a commit and the undo that carries it) is sent once', async () => {
+    const ok = {
+      status: 200,
+      body: {
+        ok: true,
+        version: 1,
+        results: [],
+        diff: { changedIds: [], created: [], deleted: [] },
+        guard: [],
+      },
+    }
+    const start = doc()
+    start.graph.nodes.wall_c = { id: 'wall_c', type: 'wall', parentId: 'level_demo_0' }
+    const { calls, fetchImpl } = fakeFetch({
+      [`GET ${HOST}`]: [{ status: 200, body: start }],
+      [`POST ${HOST}/ops`]: [ok],
+    })
+    const fake = fakePort(start.graph.nodes)
+    const sync = new RemoteSceneSync({
+      sceneUrl: HOST,
+      author,
+      port: fake.port,
+      fetch: fetchImpl,
+      eventSource: () => ({ addEventListener() {}, close() {} }),
+    })
+    await sync.load()
+    sync.start()
+    const withWall = fake.nodes
+    fake.edit((d) => {
+      delete d.wall_c
+    })
+    // The same removal reported again from a state that still had the wall.
+    fake.port.applyNodes(withWall, 'all')
+    fake.edit((d) => {
+      delete d.wall_c
+    })
+    await settle()
+    const posts = calls.filter((c) => c.method === 'POST')
+    expect(posts.map((c) => (c.body as { ops: unknown[] }).ops)).toEqual([
+      [{ op: 'node.delete', id: 'wall_c' }],
+    ])
+    sync.stop()
+  })
 })
 
 describe('ext:element schema', () => {

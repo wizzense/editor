@@ -64,7 +64,7 @@ if (forkExtensionsEnabled) {
   void registerForkExtensions()
   // Dev inspection, like `__pascalNodeRegistry` in bootstrap: lets a browser check drive the store as a tool does.
   if (process.env.NODE_ENV !== 'production' && typeof globalThis !== 'undefined') {
-    ;(globalThis as { __pascalScene?: typeof useScene }).__pascalScene = useScene
+    ;(globalThis as { __pascalSceneStore?: typeof useScene }).__pascalSceneStore = useScene
   }
   // A scene host link may land on the project list: the studio page is where its scene opens.
   if (typeof window !== 'undefined' && window.location.pathname === '/' && sceneHostFromUrl()) {

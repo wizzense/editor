@@ -6,7 +6,7 @@ import {
   parseOpsFrame,
   SceneHostClient,
 } from './host-client'
-import type { Author, OpsResponse, SaveResponse, SceneDoc, SceneNode, SceneOp } from './ops'
+import type { Author, NodeOp, OpsResponse, SaveResponse, SceneDoc, SceneNode, SceneOp } from './ops'
 
 /** What the sync needs from the editor's scene store (the default port binds the real store). */
 export type ScenePort = {
@@ -50,6 +50,8 @@ export class RemoteSceneSync {
   private listeners = new Set<(status: SyncStatus) => void>()
   private status: SyncStatus = { version: 0, connected: false, lastError: null }
   doc: SceneDoc | null = null
+  /** The node ids the host holds, as far as this client has heard. */
+  private hostIds = new Set<string>()
 
   constructor(options: RemoteSceneSyncOptions) {
     this.options = options
@@ -84,6 +86,7 @@ export class RemoteSceneSync {
   async load(): Promise<SceneDoc['graph']> {
     const doc = await this.client.getDoc()
     this.doc = doc
+    this.hostIds = new Set(Object.keys(doc.graph.nodes))
     this.setStatus({ version: doc.version })
     const installed = new Set([
       ...(doc.graph.installedPlugins ?? []),
@@ -134,6 +137,10 @@ export class RemoteSceneSync {
     const frame = parseOpsFrame(data)
     if (!frame) return false
     this.options.port.applyNodes(frame.nodes, 'listed')
+    for (const [id, node] of Object.entries(frame.nodes)) {
+      if (node) this.hostIds.add(id)
+      else this.hostIds.delete(id)
+    }
     if (frame.version > this.status.version) this.setStatus({ version: frame.version })
     return true
   }
@@ -142,6 +149,7 @@ export class RemoteSceneSync {
   async reload(): Promise<void> {
     const doc = await this.client.getDoc()
     this.doc = doc
+    this.hostIds = new Set(Object.keys(doc.graph.nodes))
     this.options.port.applyNodes(doc.graph.nodes, 'all')
     this.setStatus({ version: doc.version })
   }
@@ -158,16 +166,24 @@ export class RemoteSceneSync {
       )
     }
     if (ops.length === 0) return
-    const touched = new Set<string>()
-    for (const op of ops) touched.add('id' in op ? op.id : op.node.id)
     void this.enqueue(async () => {
+      // Checked when the batch is sent, not when it was made: an edit seen twice (a commit and the undo
+      // that carries it) or one the host already has from another writer is not sent again.
+      const batch = this.withoutStale(ops)
+      if (batch.length === 0) return null
+      const touched = new Set<string>()
+      for (const op of batch) touched.add('id' in op ? op.id : op.node.id)
       const { status, body } = await this.client.postOps(
         this.status.version,
         this.options.author,
-        ops,
+        batch,
       )
       if (status === 200 && body.ok) {
         this.acceptVersion(body.version)
+        for (const op of batch) {
+          if (op.op === 'node.create') this.hostIds.add(op.node.id)
+          if (op.op === 'node.delete') this.hostIds.delete(op.id)
+        }
         return body
       }
       if (status === 409) {
@@ -184,6 +200,18 @@ export class RemoteSceneSync {
       this.setStatus({ lastError: error })
       this.notify(`The host refused the edit: ${error}`, 'error')
       return body
+    })
+  }
+
+  private withoutStale(ops: NodeOp[]): NodeOp[] {
+    const creating = new Set<string>()
+    return ops.filter((op) => {
+      if (op.op === 'node.create') {
+        if (this.hostIds.has(op.node.id)) return false
+        creating.add(op.node.id)
+        return true
+      }
+      return this.hostIds.has(op.id) || creating.has(op.id)
     })
   }
 

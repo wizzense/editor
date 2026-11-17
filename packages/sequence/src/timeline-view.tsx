@@ -114,6 +114,16 @@ export default function TimelineView() {
   const sendTime = useThrottledTime(seq?.id)
 
   useEffect(() => onActiveSceneSync(() => setSyncTick((n) => n + 1)), [])
+  // The engine docks and undocks with its view: ready comes as an event, a closed view shows on the next poll.
+  const [engineReady, setEngineReady] = useState(() => engineAdapter.isReady())
+  useEffect(() => {
+    const off = engineAdapter.onReady(() => setEngineReady(true))
+    const poll = setInterval(() => setEngineReady(engineAdapter.isReady()), 1000)
+    return () => {
+      off()
+      clearInterval(poll)
+    }
+  }, [])
   useEffect(
     () =>
       engineAdapter.onTick((f, isPlaying) => {
@@ -249,7 +259,6 @@ export default function TimelineView() {
     )
   }
 
-  const engineReady = engineAdapter.isReady()
   return (
     <div className="flex h-full w-full flex-col gap-2 overflow-hidden bg-background p-2 text-foreground">
       <div className="flex flex-wrap items-center gap-2">
