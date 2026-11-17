@@ -1,0 +1,35 @@
+{
+  "name": "@pascal-app/sequence",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sequences on the scene graph: a sequence node with sections and keyed tracks, a camera node, and a timeline view that scrubs and plays a docked engine.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check-types": "tsgo --noEmit",
+    "test": "bun test src"
+  },
+  "peerDependencies": {
+    "@pascal-app/core": "^1.0.4",
+    "@pascal-app/editor": "^1.0.4",
+    "@pascal-app/viewer": "^1.0.4",
+    "react": "^18 || ^19",
+    "@react-three/fiber": "^9",
+    "three": "^0.186",
+    "zod": ">=4.6.7 <4.7"
+  },
+  "devDependencies": {
+    "@pascal/typescript-config": "*",
+    "@types/bun": "^1.4.3",
+    "@pascal-app/core": "*",
+    "@pascal-app/viewer": "*",
+    "@pascal-app/editor": "*"
+  },
+  "dependencies": {
+    "@pascal-app/engine-bridge": "*",
+    "@pascal-app/remote-scene": "*"
+  }
+}

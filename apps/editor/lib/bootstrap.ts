@@ -18,6 +18,7 @@ import {
 import { treesHostPanel, treesPlugin } from '@pascal-app/plugin-trees'
 import { registerViewerPresentation } from '@pascal-app/viewer'
 import { webXRHostPanel, webXRPlugin } from '@webxr/plugin'
+import './fork-extensions'
 
 // Idempotency guards: HMR can reload this module, but `registerNode`
 // throws on duplicate kinds. Flags live in the module closure so they
