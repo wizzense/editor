@@ -2,7 +2,7 @@
 // Inert unless NEXT_PUBLIC_PASCAL_FORK_EXT=1. Everything it adds is an additive package; the only upstream
 // touch point is the import of this file in bootstrap.ts.
 
-import { loadPlugin, nodeRegistry, type Plugin } from '@pascal-app/core'
+import { loadPlugin, nodeRegistry, type Plugin, useScene } from '@pascal-app/core'
 import { registerEditorHostView } from '@pascal-app/editor'
 import { configureEngineView, engineHostView } from '@pascal-app/engine-bridge'
 import { REMOTE_SCENE_PLUGIN_ID, remoteScenePlugin } from '@pascal-app/remote-scene'
@@ -62,6 +62,10 @@ export function configureEngineFor(sceneUrl: string, sceneId: string): void {
 
 if (forkExtensionsEnabled) {
   void registerForkExtensions()
+  // Dev inspection, like `__pascalNodeRegistry` in bootstrap: lets a browser check drive the store as a tool does.
+  if (process.env.NODE_ENV !== 'production' && typeof globalThis !== 'undefined') {
+    ;(globalThis as { __pascalScene?: typeof useScene }).__pascalScene = useScene
+  }
   // A scene host link may land on the project list: the studio page is where its scene opens.
   if (typeof window !== 'undefined' && window.location.pathname === '/' && sceneHostFromUrl()) {
     window.location.replace(`${STUDIO_PATH}${window.location.search}`)
